@@ -9,16 +9,21 @@ import "math"
 func main() {
 
 	utils := make([]float64, 0)
-	for u := 0.05; u < 1; u += 0.05 {
+	for u := 0.0; u < 0.999999; u += 0.1 {
 		utils = append(utils, u)
 	}
 	utils = append(utils, 0.99)
 	utils = append(utils, 0.999)
 
+	// m is number of servers
+	servers := make([]float64, 0)
+	for m := 1.0; m <= 64; m *= 2 {
+		servers = append(servers, m)
+	}
+
 	fmt.Println("servers\tutil\terlang\tgunther\tsakasegawa")
 
-	// m is number of servers
-	for m := 1.0; m <= 64; m *= 2 {
+	for _, m := range servers {
 		for _, u := range utils {
 			e := erlang(u, m)
 			g := gunther(u, m)
@@ -29,7 +34,7 @@ func main() {
 
 }
 
-// The Erlang C formula. u=utilization and m=servers.
+// The Erlang C formula for queue length. u=utilization and m=servers.
 // See erlang.pl in Analyzing Computer System Performance with Perl::PDQ.
 func erlang(u, m float64) float64 {
 	erlangs := u * m
@@ -40,17 +45,18 @@ func erlang(u, m float64) float64 {
 	}
 
 	erlangC := erlangB / (1.0 - u + (u * erlangB))
-	return erlangC / (m * (1.0 - u))
+	return u * m * erlangC / (m * (1.0 - u))
 }
 
 // Sakasegawa's approximation to the queue length.
-// See Sakasegawa (1976) or (1982).
+// See Sakasegawa (1977) or (1982).
 func sakasegawa(u, m float64) float64 {
-	return (math.Pow(u, math.Sqrt(2*(m+1.0)))) / (1 - u)
+	return math.Pow(u, math.Sqrt(2*(m+1.0))) / (1 - u)
 }
 
-// Neil Gunther's generalization of the "stretch factor" formula to m servers.
-// See eq 2.63 in Analyzing Computer System Performance with Perl::PDQ.
+// Neil Gunther's generalization of the "stretch factor" formula to m servers,
+// solved for queue length.  See eq 2.63 in Analyzing Computer System
+// Performance with Perl::PDQ.
 func gunther(u, m float64) float64 {
-	return 1/(1-math.Pow(u, m)) - 1
+	return u * m * (1/(1-math.Pow(u, m)) - 1)
 }
